@@ -77,3 +77,31 @@ end
         g0 + (1 + g1/√Ds)*(A_net/Cs) * fΨv
     end ~ track(u"mol/m^2/s/bar" #= H2O =#, min=g0)
 end
+
+###############
+# From Photo3 #
+###############
+@system StomataCAM(StomataBase, StomataTuzet) begin
+    a1: stomatal_conductance_parameter => 0.8*15 ~ preserve(parameter)
+
+    fD(VPD): stomata_response_to_vpd => begin
+        if VPD < 0.01u"Pa"
+            1
+        else 
+            3/13/sqrt(Cropbox.deunitfy(VPD)) # no /1000 since in kPa instead of Pa
+        end
+    end ~ track
+
+    # in Photo3 Cs = Ca
+    Cs(Ca): co2_at_leaf_surface ~ track(u"μbar")
+
+    Cc ~ hold
+
+    gsc(a1, A_net, Cc, fD): stomatal_conductance_co2 => begin
+        a1*A_net/Cc*fD
+    end ~ track(u"mol/m^2/s/bar" #= C02 =#)
+
+    gs(gsc): stomatal_conductance_to_water => begin
+        gsc*1.6
+    end ~ track(u"mol/m^2/s/bar" #= H2O =#)
+end
