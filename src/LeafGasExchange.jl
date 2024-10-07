@@ -26,7 +26,9 @@ include("energybalance.jl")
 @system ModelC3MD(ModelBase, StomataMedlyn, C3, Controller)
 @system ModelC4MD(ModelBase, StomataMedlyn, C4, Controller)
 
-export ModelC3BB, ModelC3MD, ModelC4BB, ModelC4MD
+@system ModelCAM(ModelBase, StomataCAM, CAM, Controller)
+
+export ModelC3BB, ModelC3MD, ModelC4BB, ModelC4MD, ModelCAM
 
 include("canopy.jl")
 
