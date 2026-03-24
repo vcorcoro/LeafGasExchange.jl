@@ -1,7 +1,7 @@
 # CAM photosynthesis model derived from Photo3 model - Hartzell, Bartlett, & Porporato (2018)
 
 @system CAMBase(CBase) begin
-    Tb: base_temperature => 20 ~ preserve(u"°C", parameter)
+    Tb: base_temperature => 25 ~ preserve(u"°C", parameter)
     # parameters from Photo3 (O. ficus-indica)
     TH: high_temperature => 302.65 ~ preserve(parameter, u"K") 
     TW: low_temperature => 283.15 ~ preserve(parameter, u"K") 
@@ -57,7 +57,8 @@ end
     ###
 
     # 302 μmol/mol (at 293.2 K ~ 20.05 C) - Photo3
-    Kc25: rubisco_constant_for_co2_at_25 => 302 ~ preserve(u"μbar", parameter)
+    # => 454.56 at 25C
+    Kc25: rubisco_constant_for_co2_at_25 => 454.56 ~ preserve(u"μbar", parameter)
     # 59430 J/mol (at 293.2 K ~ 20.05 C) - Photo3 (original reference)
     Eac: activation_energy_for_co2 => 59.43 ~ preserve(u"kJ/mol", parameter)
     Kc(Kc25, kT, Eac): rubisco_constant_for_co2 => begin
@@ -65,7 +66,8 @@ end
     end ~ track(u"μbar")
 
     # 256. # Michaelis constant for 02 at TO (mmol/mol) - Photo3
-    Ko25: rubisco_constant_for_o2_at_25 => 256 ~ preserve(u"mbar", parameter)
+    # => 327.95 at 25C
+    Ko25: rubisco_constant_for_o2_at_25 => 327.95 ~ preserve(u"mbar", parameter)
     # 36000. # Activation Energy for Ko (J/mol) - Photo3
     Eao: activation_energy_for_o2 => 36 ~ preserve(u"kJ/mol", parameter)
     Ko(Ko25, kT, Eao): rubisco_constant_for_o2 => begin
@@ -81,7 +83,8 @@ end
     end ~ track(u"μbar")
 
     # VCMAX0 = 18. # maximum carboxylation capacity - Photo3
-    Vcm25: maximum_carboxylation_rate_at_25 => 18 ~ preserve(u"μmol/m^2/s" #= CO2 =#, parameter) # species dependent
+    # => 25.82 at 25C
+    Vcm25: maximum_carboxylation_rate_at_25 => 25.82 ~ preserve(u"μmol/m^2/s" #= CO2 =#, parameter) # species dependent
     # HKC =  59430. # Activation Energy for Kc (J/mol) - Photo3
     EaVc: activation_energy_for_carboxylation => 52.43 ~ preserve(u"kJ/mol", parameter)
     Vcmax(Vcm25, kT, EaVc, kN): maximum_carboxylation_rate => begin
@@ -125,7 +128,8 @@ end
 # addition of respiration fluxes - Photo3
 @system CAMr(CAMBase) begin
     # 0.32 from Photo3 (at 293.2 K ~ 20.05 C)
-    Rd25: dark_respiration_at_25 => 0.32 ~ preserve(u"μmol/m^2/s" #= CO2 =#, parameter)
+    # => 0.46 at 25C
+    Rd25: dark_respiration_at_25 => 0.46 ~ preserve(u"μmol/m^2/s" #= CO2 =#, parameter)
     # 53000 J/mol from Photo3 (at 293.2 K ~ 20.05 C)
     Ear: activation_energy_for_respiration => 53 ~ preserve(u"kJ/mol", parameter)
     Rd(Rd25, kT, Ear): dark_respiration => begin
@@ -144,7 +148,8 @@ end
 
     # CO2 compensation point in the absence of day respiration,
     # GAMMA_0 = 34.6 - Photo3
-    Γ25: co2_compensation_point_at_25 => 34.6 ~ preserve(u"μbar", parameter)
+    # => 44.89 at 25
+    Γ25: co2_compensation_point_at_25 => 44.89 ~ preserve(u"μbar", parameter)
     # different equation used, does not have this paramter - Photo3
     Eag: activation_energy_for_co2_compensation_point => 37.83 ~ preserve(u"kJ/mol", parameter)
     Γ(Γ25, kT, Eag): co2_compensation_point => begin
