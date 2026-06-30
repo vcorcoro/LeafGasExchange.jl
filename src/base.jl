@@ -1,6 +1,7 @@
 @system TemperatureDependence begin
     T: leaf_temperature ~ hold
-    Tk(T): absolute_leaf_temperature ~ track(u"K")
+    Tk: absolute_leaf_temperature ~ hold
+    # Tk(T): absolute_leaf_temperature ~ track(u"K") # redundant in EnergyBalance
 
     Tb: base_temperature => 25 ~ preserve(u"°C", parameter)
     Tbk(Tb): absolute_base_temperature ~ preserve(u"K")

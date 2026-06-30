@@ -152,3 +152,9 @@ end
         (Rd*Km + Vcmax*Γ★) / (Vcmax - Rd)
     end ~ track(u"μbar")
 end
+
+@system C4Dyn(C4) begin
+    A_net(Ac, Aj): net_photosynthesis => begin
+        min(Ac, Aj)
+    end ~ track(u"μmol/m^2/s")
+end

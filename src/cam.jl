@@ -21,9 +21,9 @@
     end ~ track(u"W/m^2")
 
     # (Photo3)    
-    Ci(Cs, fD, a1): intercellular_co2 => begin
-        Cs * (1 - 1/(fD*a1))
-    end ~ track(u"μbar")
+    # Ci(Cs, fD, a1): intercellular_co2 => begin
+    #     Cs * (1 - 1/(fD*a1))
+    # end ~ track(u"μbar")
     Cm(Ci): mesophyll_co2 ~ track(u"μbar")
     
     # malic acid decarboxylation increases co2 concentration in mesophyll (Photo3)
@@ -50,9 +50,12 @@ end
     end ~ track(u"μmol/m^2/s" #= CO2 =#)
 
     # Assume PEP substrate is not limiting
-    Vp(Vpmax, Cm, Kp): pep_carboxylation_rate => begin
+    # Ci instead of Cc because high Cc is from malic acid not flux from stomata
+    # Cc instead of Ci because Cc is site of carboxylation - if Cc > Ci this is 
+    # refixation of CO2 from malic acid or respiration, so Asv = 0 
+    Vp(Vpmax, Ci, Kp): pep_carboxylation_rate => begin
         # PEP carboxylation rate, that is the rate of C4 acid generation
-        (Cm * Vpmax) / (Cm + Kp)
+        (Ci * Vpmax) / (Ci + Kp)
     end ~ track(u"μmol/m^2/s" #= CO2 =#)
     ###
 
@@ -183,10 +186,11 @@ end
     end ~ track(u"mol/m^3")
     
     m_e(m_max,CIRC_1,TH,Tk,TW,BETA,z,MU,CIRC_2,f_o,m,α_1,solrad): equilibrium_concentration_of_malic_acid => begin
+        f_t = (TH - Tk)/(TH - TW)
         if solrad > 0u"W/m^2"
-            m_max*(CIRC_1*((TH - Tk)/(TH - TW) + 1)*(BETA*(z - MU))^3 - BETA*(TH - Tk)/(TH - TW)*(z - MU) + CIRC_2*(TH - Tk)/(TH - TW) -(1- f_o)*(1-m/(m+α_1*m_max)))
+            m_max*(CIRC_1*(f_t + 1)*(BETA*(z - MU))^3 - BETA*f_t*(z - MU) + CIRC_2*f_t -(1- f_o)*(1-m/(m+α_1*m_max)))
         else
-            m_max*(CIRC_1*((TH - Tk)/(TH - TW) + 1)*(BETA*(z - MU))^3 - BETA*(TH - Tk)/(TH - TW)*(z - MU) + CIRC_2*(TH - Tk)/(TH - TW) + (1-f_o))
+            m_max*(CIRC_1*(f_t + 1)*(BETA*(z - MU))^3 - BETA*f_t*(z - MU) + CIRC_2*f_t + (1-f_o))
         end
     end ~ track(u"mol/m^3")
     
@@ -195,8 +199,12 @@ end
     end ~ track
     
     f_m(f_o,m_s,m,α_2): malic_acid_storage_function => begin
-        f_o*(m_s - m)/(α_2*m_s + m_s - m)
-    end ~ track
+        if m > m_s # added this condition here instead of inside of Asv calculation 5/15/26
+            0
+        else
+            f_o*(m_s - m)/(α_2*m_s + m_s - m)
+        end
+    end ~ track(min=0) # should be non-negative, so added min for if m > m_s
     
     f_c(f_o, m, α_1, m_max): carbon_circadian_control_function => begin
         (1 - f_o)*m/(α_1*m_max + m)
@@ -210,7 +218,6 @@ end
         (m - m_e)/(m_max*TR)
     end ~ accumulate(init=z0, min=0)
 
-    #add flag to track CAM phase, length of PhaseIII for calibration
 end
 
 @system CAMRate(CAMc, CAMj, CAMr, CircadianCycle) begin
@@ -245,12 +252,12 @@ end
     ###############
 
     #should this use Ad_cc or Ad_ci? - in Photo3 Ci is used here
-    # Asc(Ad_cc, Rdc, f_c, fΨv): co2_flux_stomata_to_calvin_cycle => begin
-    #     (Ad_cc - Rdc)*(1-f_c) * fΨv
-    # end ~ track(min=0, u"μmol/m^2/s")
-    Asc(Ad_ci, Rdc, f_c, fΨv): co2_flux_stomata_to_calvin_cycle => begin
-        (Ad_ci - Rdc)*(1-f_c) * fΨv
+    Asc(Ad_cc, Rdc, f_c, fΨv): co2_flux_stomata_to_calvin_cycle => begin
+        (Ad_cc - Rdc)*(1-f_c) * fΨv
     end ~ track(min=0, u"μmol/m^2/s")
+    # Asc(Ad_ci, Rdc, f_c, fΨv): co2_flux_stomata_to_calvin_cycle => begin
+    #     (Ad_ci - Rdc)*(1-f_c) * fΨv
+    # end ~ track(min=0, u"μmol/m^2/s")
     
     # Km_m: michaelis_menten_coefficient_for_malic_acid => 200 ~ preserve(parameter,u"μbar")
     # adjusted to incorporate response to CO2 (Cc - Γ)/(Cc + Km_m)
@@ -262,13 +269,11 @@ end
     #     end
     # end ~ track(u"μmol/m^2/s")
 
-    Asv(m_s,m,Vp,Rdv,f_m,fΨv): co2_flux_stomata_to_vacuole => begin
-        if m_s > m
-            (Vp - Rdv) * f_m * fΨv
-        else
-            0
-        end
-    end ~ track(u"μmol/m^2/s")
+    # FIXME: Asv should not go negative when Rdv > Vp because assuming all Rd reincorporated - added min=0
+    # added condition Cc < Ci - doesn't work because Cc always > Ci, approaches asymptoticaly 
+    Asv(Vp,Rdv,f_m,fΨv): co2_flux_stomata_to_vacuole => begin
+        (Vp - Rdv) * f_m * fΨv 
+    end ~ track(min=0, u"μmol/m^2/s")
     
     Avc(Ad_cc, Rdc, f_c): co2_flux_vacuole_to_calvin_cycle => begin
         (Ad_cc - Rdc)*f_c
@@ -286,4 +291,16 @@ end
 
 end
 
+@system CAMRateDyn(CAMRate) begin
+    Asc(Ad_cc, Rdc, f_c): co2_flux_stomata_to_calvin_cycle => begin
+        (Ad_cc - Rdc)*(1-f_c)
+    end ~ track(min=0, u"μmol/m^2/s")
+
+    Asv(Vp,Rdv,f_m): co2_flux_stomata_to_vacuole => begin
+        (Vp - Rdv) * f_m 
+    end ~ track(min=0, u"μmol/m^2/s")
+end
+
+
 @system CAM(CAMRate)
+@system CAMDyn(CAMRateDyn)
