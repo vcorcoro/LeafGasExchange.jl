@@ -34,6 +34,7 @@ include("zeitgeibertime.jl")
 @system ModelC3MD(ModelBase, StomataMedlyn, C3, Controller)
 @system ModelC4MD(ModelBase, StomataMedlyn, C4, Controller)
 
+# TODO: include Controller/MinuteController as mixin or not? 
 @system ModelCAMBB(ModelBase, StomataBallBerry, CAM)
 @system ModelCAMMD(ModelBase, StomataMedlyn, CAM)
 @system ModelCAMKB(ModelBase, CAMDyn, StomataKirschbaumCAM, IntercellularSpaceDynCAM)

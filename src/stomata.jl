@@ -51,7 +51,7 @@ end
         (g0 + RH*gb) / (gb + g0)
     end ~ track(min=RH, max=1)
     hs(hs1, hs2, nounit(A_net)): relative_humidity_at_leaf_surface => begin
-        if A_net ≈ 0
+        if (A_net + 1) ≈ 1    # check A_net ≈ 0
             hs2
         else 
             hs1
