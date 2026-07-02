@@ -45,7 +45,7 @@ include("zeitgeibertime.jl")
 
 @system ModelC4Dyn(ModelBaseDyn, StomataDyn, IntercellularSpaceDynC4, C4Dyn)
 
-export ModelC3BB, ModelC3MD, ModelC4BB, ModelC4MD, ModelCAM, ModelCAMKB, ModelC3KB, ModelCAMDyn, ModelC3Dyn, ModelC4Dyn
+export ModelC3BB, ModelC3MD, ModelC4BB, ModelC4MD, ModelCAMBB, ModelC3KB, ModelCAMDyn, ModelC3Dyn, ModelC4Dyn
 
 include("canopy.jl")
 
