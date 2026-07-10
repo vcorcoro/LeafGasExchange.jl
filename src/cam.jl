@@ -89,7 +89,7 @@ end
     # => 25.82 at 25C
     Vcm25: maximum_carboxylation_rate_at_25 => 25.82 ~ preserve(u"μmol/m^2/s" #= CO2 =#, parameter) # species dependent
     # HKC =  59430. # Activation Energy for Kc (J/mol) - Photo3
-    EaVc: activation_energy_for_carboxylation => 52.43 ~ preserve(u"kJ/mol", parameter)
+    EaVc: activation_energy_for_carboxylation => 59.43 ~ preserve(u"kJ/mol", parameter)
     Vcmax(Vcm25, kT, EaVc, kN): maximum_carboxylation_rate => begin
         Vcm25 * kT(EaVc) * kN
     end ~ track(u"μmol/m^2/s" #= CO2 =#)
@@ -251,13 +251,13 @@ end
     # From Photo3 #
     ###############
 
-    #should this use Ad_cc or Ad_ci? - in Photo3 Ci is used here
-    Asc(Ad_cc, Rdc, f_c, fΨv): co2_flux_stomata_to_calvin_cycle => begin
-        (Ad_cc - Rdc)*(1-f_c) * fΨv
-    end ~ track(min=0, u"μmol/m^2/s")
-    # Asc(Ad_ci, Rdc, f_c, fΨv): co2_flux_stomata_to_calvin_cycle => begin
-    #     (Ad_ci - Rdc)*(1-f_c) * fΨv
+    #should this use Ad_cc or Ad_ci? - in Photo3 Ci is used here, but both are calculated
+    # Asc(Ad_cc, Rdc, f_c, fΨv): co2_flux_stomata_to_calvin_cycle => begin
+    #     (Ad_cc - Rdc)*(1-f_c) * fΨv
     # end ~ track(min=0, u"μmol/m^2/s")
+    Asc(Ad_ci, Rdc, f_c, fΨv): co2_flux_stomata_to_calvin_cycle => begin
+        (Ad_ci - Rdc)*(1-f_c) * fΨv
+    end ~ track(min=0, u"μmol/m^2/s")
     
     # Km_m: michaelis_menten_coefficient_for_malic_acid => 200 ~ preserve(parameter,u"μbar")
     # adjusted to incorporate response to CO2 (Cc - Γ)/(Cc + Km_m)
@@ -292,8 +292,11 @@ end
 end
 
 @system CAMRateDyn(CAMRate) begin
-    Asc(Ad_cc, Rdc, f_c): co2_flux_stomata_to_calvin_cycle => begin
-        (Ad_cc - Rdc)*(1-f_c)
+    # Asc(Ad_cc, Rdc, f_c): co2_flux_stomata_to_calvin_cycle => begin
+    #     (Ad_cc - Rdc)*(1-f_c)
+    # end ~ track(min=0, u"μmol/m^2/s") 
+    Asc(Ad_ci, Rdc, f_c): co2_flux_stomata_to_calvin_cycle => begin
+        (Ad_ci - Rdc)*(1-f_c)
     end ~ track(min=0, u"μmol/m^2/s")
 
     Asv(Vp,Rdv,f_m): co2_flux_stomata_to_vacuole => begin

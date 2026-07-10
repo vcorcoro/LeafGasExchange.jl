@@ -89,6 +89,9 @@ end
     #     a * Ci^2 + b * Ci + c
     # end ~ solve(u"μbar")
 
+    ### Format ###
+    #   A = v * ((Ci + a) / (d*Ci + b)) - R = g * (Ca - Ci)
+
     ### Asv
     a1(f_c, C0) => f_c * C0 ~ track(u"μbar")
     b1(f_c, C0, Kp) => f_c * C0 + Kp ~ track(u"μbar")
@@ -98,15 +101,19 @@ end
     R1(Rdv) ~ track(u"μmol/m^2/s")
 
     ### Asc
-    a2(f_c, C0, Γ) => f_c*C0 - Γ ~ track(u"μbar")
+    # for Ad_ci replace f_c*C0 with 0
+    # a2(f_c, C0, Γ) => f_c*C0 - Γ ~ track(u"μbar")
+    a2(Γ) => -Γ ~ track(u"μbar")
     f2(f_c) => (1 - f_c) ~ track
     R2(Rdc) ~ track(u"μmol/m^2/s")
     #Ac
-    b2(f_c, C0, Km) => (f_c*C0 + Km) ~ track(u"μbar")
+    # b2(f_c, C0, Km) => (f_c*C0 + Km) ~ track(u"μbar")
+    b2(Km) => Km ~ track(u"μbar")
     d2 => 1 ~ preserve
     v2(Vcmax) ~ track(u"μmol/m^2/s")
     #Aj
-    b3(f_c, C0, Γ) => (4f_c*C0 + 8Γ) ~ track(u"μbar")
+    # b3(f_c, C0, Γ) => (4f_c*C0 + 8Γ) ~ track(u"μbar")
+    b3(Γ) => 8Γ ~ track(u"μbar")
     d3 => 4 ~ preserve
     v3(J) ~ track(u"μmol/m^2/s")
 

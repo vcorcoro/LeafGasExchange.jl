@@ -132,7 +132,7 @@ end
         c = λ*gv*Esa*(1 - RH) - R_sw
     end ~ track(u"W/m^2")
 
-    # second order Taylor expansion around ξ = 0, f(ξ) ~= f(0) + f'(0)*ξ + 0.5*f''(0)*ξ^2
+    # second order Taylor expansion around ξ = 0, f(ξ) ≈ f(0) + f'(0)*ξ + 0.5*f''(0)*ξ^2
     ξ(a_ξ, b_ξ, c_ξ): temperature_adjustment_TE => begin
         0.5*a_ξ*ξ^2 + b_ξ*ξ + c_ξ
     end ~ solve
