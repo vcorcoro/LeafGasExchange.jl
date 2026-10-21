@@ -291,6 +291,16 @@ end
 
 end
 
+@system CAMRate0(CAMRate) begin
+    Asv(m_s,m,K,Tk,T,TOPT,Am_max,Rdv,f_m,fΨv): co2_flux_stomata_to_vacuole => begin
+        if m_s > m && 1 - K*(Cropbox.deunitfy(Tk - TOPT)^2) > 0
+            (Am_max*(1 - K*(Cropbox.deunitfy(Tk - TOPT))^2) - Rdv)*f_m * fΨv
+        else
+            0
+        end
+    end ~ track(u"μmol/m^2/s")
+end
+
 @system CAMRateDyn(CAMRate) begin
     # Asc(Ad_cc, Rdc, f_c): co2_flux_stomata_to_calvin_cycle => begin
     #     (Ad_cc - Rdc)*(1-f_c)
@@ -306,4 +316,5 @@ end
 
 
 @system CAM(CAMRate)
+@system CAM0(CAMRate0)
 @system CAMDyn(CAMRateDyn)

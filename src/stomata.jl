@@ -186,69 +186,147 @@ end
     S_eq(SI_eq, SΨ_eq) => SI_eq * SΨ_eq ~ track
 end
 
+# # dynamic stomata model - prognostic updates with time constant (Liu et al., 2024)
+# @system StomataDyn(StomataBase, StomataTuzet, StomataBallBerry) begin
+#     # initialize stomatal conductance
+#     gs_init => 0.001 ~ preserve(parameter, u"mol/m^2/s/bar") 
+#     gvc_init(gs_init, gb, drb, dra) => begin
+#         1 / (drb/gb + dra/gs_init)
+#     end ~ preserve(u"mol/m^2/s/bar")
+
+#     # capture stomatal conductance at last time step
+#     gvc_capture(gvc) ~ capture(u"mol/m^2/s/bar*hr", time=ztime)
+#     gvc_prev(gvc_init, gvc_capture, h=context.clock.step, i=context.clock.tick) => begin 
+#         i == 0 ? gvc_init : gvc_capture / h     
+#     end ~ track(u"mol/m^2/s/bar")
+#     # gvc value for use in IntercellularSpaceDyn
+#     g(gvc_prev) ~ track(u"mol/m^2/s/bar", min=g0)
+
+#     gs_capture(gs) ~ capture(u"mol/m^2/s/bar*hr", time=ztime)
+#     gs_prev(gs_init, gs_capture, h=context.clock.step, i=context.clock.tick) => begin
+#         i == 0 ? gs_init : gs_capture / h 
+#     end ~ track(u"mol/m^2/s/bar", min=g0)
+    
+#     # calculate target steady state conductance from Ball-Berry model
+#     gs_target(g0, g1, A_net, hs, Cs, fΨv): stomatal_conductance_steady_state_target => begin
+#         if any(i -> isnan(i), [A_net, hs, Cs])
+#             @warn "NaN in equation for gs_target: A_net => $A_net, hs => $hs, Cs => $Cs"
+#         end
+#         g0 + g1*(A_net*hs/Cs) * fΨv
+#     end ~ track(u"mol/m^2/s/bar" #= H2O =#, min=g0)
+    
+#     # calculate actual change in stomatal conductance 
+#     τ: stomata_time_constant => 900 ~ preserve(parameter, u"s")
+#     Δgs(gs_prev, gs_target, τ, h=context.clock.step) => begin
+#         (gs_target - gs_prev) / τ * h
+#     end ~ track(u"mol/m^2/s/bar")
+
+#     # update gs
+#     gs(gs_prev, Δgs): stomatal_conductance => begin
+#         gs_prev + Δgs
+#     end ~ track(u"mol/m^2/s/bar", min=g0)
+# end
+
 # dynamic stomata model - prognostic updates with time constant (Liu et al., 2024)
-@system StomataDyn(StomataBase, StomataTuzet, StomataBallBerry) begin
+@system StomataDynBase(StomataBase, StomataTuzet) begin
     # initialize stomatal conductance
     gs_init => 0.001 ~ preserve(parameter, u"mol/m^2/s/bar") 
-    gvc_init(gs_init, gb, drb, dra) => begin
-        1 / (drb/gb + dra/gs_init)
-    end ~ preserve(u"mol/m^2/s/bar")
+    # gvc_init(gs_init, gb, drb, dra) => begin
+    #     1 / (drb/gb + dra/gs_init)
+    # end ~ preserve(u"mol/m^2/s/bar")
 
     # capture stomatal conductance at last time step
-    gvc_capture(gvc) ~ capture(u"mol/m^2/s/bar*hr", time=ztime)
-    gvc_prev(gvc_init, gvc_capture, h=context.clock.step, i=context.clock.tick) => begin 
-        i == 0 ? gvc_init : gvc_capture / h     
-    end ~ track(u"mol/m^2/s/bar")
-    # gvc value for use in IntercellularSpaceDyn
-    g(gvc_prev) ~ track(u"mol/m^2/s/bar", min=g0)
-
-    gs_capture(gs) ~ capture(u"mol/m^2/s/bar*hr", time=ztime)
-    gs_prev(gs_init, gs_capture, h=context.clock.step, i=context.clock.tick) => begin
-        i == 0 ? gs_init : gs_capture / h 
-    end ~ track(u"mol/m^2/s/bar", min=g0)
+    # gvc_capture(gvc) ~ capture(u"mol/m^2/s/bar*hr", time=ztime)
+    # gvc_prev(gvc_init, gvc_capture, h=context.clock.step, i=context.clock.tick) => begin 
+    #     i == 0 ? gvc_init : gvc_capture / h     
+    # end ~ track(u"mol/m^2/s/bar")
+    # gend ~ track(u"mol/m^2/s/bar", min=g0)
     
-    # calculate target steady state conductance from Ball-Berry model
-    gs_target(g0, g1, A_net, hs, Cs, fΨv): stomatal_conductance_steady_state_target => begin
-        if any(i -> isnan(i), [A_net, hs, Cs])
-            @warn "NaN in equation for gs_target: A_net => $A_net, hs => $hs, Cs => $Cs"
-        end
-        g0 + g1*(A_net*hs/Cs) * fΨv
-    end ~ track(u"mol/m^2/s/bar" #= H2O =#, min=g0)
+    # calculate target steady state conductance from Ball-Berry or Medlyn model
+    gs_target ~ hold
     
     # calculate actual change in stomatal conductance 
     τ: stomata_time_constant => 900 ~ preserve(parameter, u"s")
-    Δgs(gs_prev, gs_target, τ, h=context.clock.step) => begin
-        (gs_target - gs_prev) / τ * h
-    end ~ track(u"mol/m^2/s/bar")
+    # Δgs(gs_prev, gs_target, τ, h=context.clock.step) => begin
+    #     (gs_target - gs_prev) / τ * h
+    # end ~ track(u"mol/m^2/s/bar")
 
     # update gs
-    gs(gs_prev, Δgs): stomatal_conductance => begin
-        gs_prev + Δgs
-    end ~ track(u"mol/m^2/s/bar", min=g0)
+    # gs(gs_prev, Δgs): stomatal_conductance => begin
+    #     gs_prev + Δgs
+    # end ~ track(u"mol/m^2/s/bar", min=g0)vc value for use in IntercellularSpaceDyn
+    # g(gvc_prev) ~ track(u"mol/m^2/s/bar", min=g0)
+
+    # gs_capture(gs) ~ capture(u"mol/m^2/s/bar*hr", time=ztime)
+    # gs_prev(gs_init, gs_capture, h=context.clock.step, i=context.clock.tick) => begin
+    #     i == 0 ? gs_init : gs_capture / h 
+    
+    dynG_flag => true ~ flag(parameter) # true for dynamic stomata, false for SS
+    
+    gs(gs, gs_target, τ, dynG_flag, h=context.clock.step): stomatal_conductance => begin
+        if dynG_flag
+            (gs_target - gs) / τ
+        else
+            (gs_target - gs)/ h
+        end
+    end ~ accumulate(init=gs_init, u"mol/m^2/s/bar")
+
+    # gs(dynG_flag, gs_dyn, gs_target): stomatal_conductance => begin
+    #     dynG_flag ? gs_dyn : gs_target
+    # end ~ track(u"mol/m^2/s/bar")
+
+    # Δgs(gs, gs_target, τ) => begin
+    #     (gs_target - gs) / τ
+    # end ~ track(u"mol/m^2/s^2/bar")
+    # gs(Δgs): stomatal_conductance ~ accumulate(init=gs_init, u"mol/m^2/s/bar")
+    # gs_capture(Δgs) ~ capture(u"mol/m^2/s/bar")
+    
+    # gvc value for use in IntercellularSpaceDyn
+    # g(gvc) ~ track(u"mol/m^2/s/bar")
+end
+
+@system StomataDynBB(StomataBallBerry, StomataDynBase) begin
+    # calculate target steady state conductance from Ball-Berry model
+    gs_target(g0, g1, A_net, hs, Cs, fΨv): stomatal_conductance_steady_state_target => begin
+        g0 + g1*(A_net*hs/Cs) * fΨv
+    end ~ track(u"mol/m^2/s/bar" #= H2O =#, min=g0)
+end
+
+@system StomataDynMD(StomataMedlyn, StomataDynBase) begin
+    # calculate target steady state conductance from Medlyn model
+    gs_target(g0, g1, A_net, Ds, Cs, fΨv): stomatal_conductance_steady_state_target => begin
+        g0 + (1 + g1/√Ds)*(A_net/Cs) * fΨv
+    end ~ track(u"mol/m^2/s/bar" #= H2O =#, min=g0)
 end
 
 ###############
 # From Photo3 #
 ###############
-# @system StomataCAM(StomataBase, StomataTuzet, StomataMedlyn) begin
-#     a1: stomatal_conductance_parameter => 0.8*15 ~ preserve(parameter)
+@system StomataCAM0(StomataBase, StomataTuzet) begin
+    a1: stomatal_conductance_parameter => 0.8*15 ~ preserve(parameter)
 
-#     fD(VPD): stomata_response_to_vpd => begin
-#         if VPD < 0.01u"Pa"
-#             1
-#         else 
-#             3/13/sqrt(Cropbox.deunitfy(VPD)) # no /1000 since in kPa instead of Pa
-#         end
-#     end ~ track
+    fD(VPD): stomata_response_to_vpd => begin
+        if VPD < 0.01u"Pa"
+            1
+        else 
+            3/13/sqrt(Cropbox.deunitfy(VPD)) # no /1000 since in kPa instead of Pa
+        end
+    end ~ track
 
-#     # in Photo3 Cs = Ca
-#     Cs(Ca): co2_at_leaf_surface ~ track(u"μbar")
+    # in Photo3 Cs = Ca
+    Cs(Ca): co2_at_leaf_surface ~ track(u"μbar")
 
-#     gsc(a1, A_net, Cs, fD): stomatal_conductance_co2 => begin
-#         a1*A_net/Cs*fD
-#     end ~ track(u"mol/m^2/s/bar" #= C02 =#)
+    gsc(a1, A_net, Cs, fD): stomatal_conductance_co2 => begin
+        a1*A_net/Cs*fD
+    end ~ track(u"mol/m^2/s/bar" #= C02 =#)
 
-#     gs(gsc): stomatal_conductance_to_water => begin
-#         gsc*1.6
-#     end ~ track(u"mol/m^2/s/bar" #= H2O =#)
-# end
+    gs(gsc): stomatal_conductance => begin
+        gsc*1.6
+    end ~ track(u"mol/m^2/s/bar" #= H2O =#)
+
+    # use this instead of intercellularspace.jl -- CC
+    Ci(Cs, fD, a1): intercellular_co2 => begin
+        Cs * (1 - 1/(fD*a1))
+    end ~ track(u"μbar")
+    
+end

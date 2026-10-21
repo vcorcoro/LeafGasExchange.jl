@@ -81,7 +81,7 @@
     # end ~ track(u"K")
 end
 
-@system EnergyBalanceDyn(Weather) begin
+@system EnergyBalanceTE(Weather) begin
     gv ~ hold
     gh ~ hold
     PPFD ~ hold
@@ -137,26 +137,19 @@ end
         0.5*a_ξ*ξ^2 + b_ξ*ξ + c_ξ
     end ~ solve
     
-    Tk_target(Tk_air, ξ) => Tk_air * (1 + ξ) ~ track(u"K")
-
+     # default initialization Tk = Tk_air, otherwise initialize in config
+    Tk_init(Tk_air) ~ preserve(parameter, u"K")
     τ_T: temperature_time_constant => 900 ~ preserve(u"s", parameter)
 
-    # calculate actual change in T
-    ΔTk(Tk_target, Tk, τ_T, h=context.clock.step) => begin
-        (Tk_target - Tk) / τ_T * h
-    end ~ track(u"K")
+    Tk_target(Tk_air, ξ) => Tk_air * (1 + ξ) ~ track(u"K")
 
-    # update T
-    Tk_next(Tk, ΔTk, i=context.clock.tick): absolute_leaf_temperature_next => begin
-        Tk + ΔTk
-    end ~ track(u"K")
-
-    # default initialization Tk = Tk_air, otherwise initialize in config
-    Tk_init(Tk_air) ~ preserve(parameter, u"K")
-
-    Tk_capture(Tk_next) ~ capture(u"K*hr", time=ztime)
-    Tk(Tk_init, Tk_capture, h=context.clock.step, i=context.clock.tick): absolute_leaf_temperature => begin
-        i == 0 ? Tk_init : Tk_capture / h 
-    end ~ track(u"K")
+    dynT_flag => true ~ flag(parameter) # true for dynamic update, false for direct jump to target
+    Tk(Tk, Tk_target, τ_T, dynT_flag, h=context.clock.step): absolute_leaf_temperature => begin
+        if dynT_flag
+            (Tk_target - Tk) / τ_T
+        else
+            (Tk_target - Tk) / h 
+        end
+    end ~ accumulate(u"K", init=Tk_init)
     T(Tk): leaf_temperature ~ track(u"°C")
 end
