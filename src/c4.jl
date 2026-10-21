@@ -20,9 +20,27 @@ end
 
     # PEP regeneration limited Vp, value adopted from vC book
     Vpr25: pep_regeneration_rate_for_co2_at_25 => 80 ~ preserve(u"μmol/m^2/s" #= CO2 =#, parameter)
-    Vpr(Vpr25, kTQ10): pep_regeneration_rate => begin
-        Vpr25 * kTQ10
+    # Vpr(Vpr25, kTQ10): pep_regeneration_rate => begin
+    #     Vpr25 * kTQ10
+    # end ~ track(u"μmol/m^2/s" #= CO2 =#)
+    # Vp_activation_type => 0 ~ preserve(parameter) # 0 for constant full activation, 1 for light dependent regeneration of PEP 
+    Vp_activation_flag => false ~ flag(parameter) # true for dynamic light dependent regeneration of PEP - CC 10/8/26
+    pa_init => 1 ~ preserve(parameter, min=p0, max=1)
+    α_p: ATPase_activation_slope => 0.0017 ~ preserve(parameter, u"m^2*s/μmol") # Wang et al. (2021)
+    p0: ATPase_activation_intercept => 0.16 ~ preserve(parameter) # Wang et al. (2021)
+    τ_p: activation_time_constant_p => 30 ~ preserve(parameter, u"s") # Wang et al. (2021)
+    pa_ss(α_p, p0, I2): ATPase_ss_activation_state => begin
+        α_p * I2 + p0
+    end ~ track(min=p0, max=1) # Wang et al. (2021)
+    
+    Spa(Spa, pa_ss, τ_p) => begin
+        (pa_ss - Spa) / τ_p
+    end ~ accumulate(init=pa_init, when=Vp_activation_flag)
+
+    Vpr(Vpr25, kTQ10, Spa): pep_regeneration_rate => begin
+        Vpr25 * kTQ10 * Spa
     end ~ track(u"μmol/m^2/s" #= CO2 =#)
+
     Vp(Vpmax, Vpr, Cm, Kp): pep_carboxylation_rate => begin
         # PEP carboxylation rate, that is the rate of C4 acid generation
         (Cm * Vpmax) / (Cm + Kp)
@@ -31,9 +49,61 @@ end
     Vcm25: maximum_carboxylation_rate_at_25 => 50 ~ preserve(u"μmol/m^2/s" #= CO2 =#, parameter)
     # EaVc: Sage (2002) JXB
     EaVc: activation_energy_for_carboxylation => 55.9 ~ preserve(u"kJ/mol", parameter)
-    Vcmax(Vcm25, kT, EaVc, kN): maximum_carboxylation_rate => begin
-        Vcm25 * kT(EaVc) * kN
+    # Vcmax(Vcm25, kT, EaVc, kN): maximum_carboxylation_rate => begin
+    #     Vcm25 * kT(EaVc) * kN
+    # end ~ track(u"μmol/m^2/s" #= CO2 =#)
+
+    ### Dyanmic light dependent activation of Rubisco -- CC 9/10/2026, updated 10/8/2026
+    rubisco_activation_flag => false ~ flag(parameter) # true for dynamic rubisco activation
+    # ra_init => 1 ~ preserve(parameter, min=r0, max=1)
+    # α_r: initial_slope => 0.04 ~ preserve(parameter, u"m^2*s/μmol") # Gross et al. (1991) cited Seemann et al. (1988)
+    # r0: minimum_state => 0.16 ~ preserve(parameter) # Gross et al. (1991) cited Seemann et al. (1988)
+    # τ_r: activation_time_constant_r => 360 ~ preserve(parameter, u"s")
+    # ra_ss(α_r, r0, I2): rubisco_ss_activation_state => begin
+    #     α_r * I2 * (1 - r0) / (α_r * I2 + (1 - r0)) + r0      # Gross et al. (1991)
+    # end ~ track(min=r0, max=1)
+
+    # include light activation of Rubisco activase and subsequent activation or Rubisco (Wang et al., 2021) - CC 10/20/26
+    α_R_init: initial_rubisco_activation_state => 1 ~ preserve(parameter, min=c0_r, max=1)
+    α_RCA_init: initial_rubisco_activase_activation_state => 1 ~ preserve(parameter, min=c0_rca, max=1)
+    k_rca: rubisco_activase_activation_slope => 0.04 ~ preserve(parameter, u"m^2*s/μmol") # Wang et al. (2021)
+    c0_rca: minimum_activation_state_rubisco_activase => 0.0017 ~ preserve(parameter) # Wang et al. (2021)
+    c0_r: minimum_activation_state_rubisco => 0.16 ~ preserve(parameter) # parameter value, source needed
+    
+    τ_r: activation_time_constant_rubisco => 360 ~ preserve(parameter, u"s")
+    τ_RCA: activation_time_constant_rubisco_activase => 45.564 ~ preserve(parameter, u"s") # Wang et al. (2021)
+    
+    c_rac: rubisco_activase_concentration_constant => 216.9 ~ preserve(parameter, u"minute*mg/m^2") # Wang et al. (2021)
+    K_activase: rubisco_activase_half_saturaton_constant => 12.3 ~ preserve(parameter, u"mg/m^2") # Wang et al. (2021)
+ 
+    RCA(c_rac, τ_r): rubisco_activase_concentration => begin
+        c_rac / τ_r
+    end ~ track(u"mg/m^2")
+
+    α_RCA_ss(k_rca, c0_rca, I2): rubisco_activase_ss_activation_state => begin
+        k_rca * I2 + c0_rca      # Wang et al. (2021)
+    end ~ track(min=c0_rca, max=1)
+
+    α_RCA(α_RCA, α_RCA_ss, τ_RCA): rubisco_activase_activation_state => begin
+        (α_RCA_ss - α_RCA) / τ_RCA
+    end ~ accumulate(init=α_RCA_init, min=0, max=1)
+
+    ActRCA(α_RCA, RCA): active_rubisco_activase_concentration => begin
+        α_RCA * RCA
+    end ~ track(u"mg/m^2")
+
+    α_R_ss(ActRCA, K_activase): rubisco_activation_steady_state => begin
+        ActRCA / (K_activase + ActRCA)
+    end ~ track(min=0, max=1)
+
+    α_R(α_R, α_R_ss, τ_r): rubisco_activation_state => begin
+        (α_R_ss - α_R) / τ_r 
+    end ~ accumulate(init=α_R_init, when=rubisco_activation_flag)
+
+    Vcmax(Vcm25, kT, EaVc, kN, α_R): maximum_carboxylation_rate => begin
+        Vcm25 * kT(EaVc) * kN * α_R
     end ~ track(u"μmol/m^2/s" #= CO2 =#)
+
 end
 
 @system C4j(C4Base) begin
@@ -135,9 +205,10 @@ end
 
     # alpha: fraction of PSII activity in the bundle sheath cell, very low for NADP-ME types
     α: bundle_sheath_PSII_activity_fraction => 0.0001 ~ preserve(parameter)
+    a_o: ratio_of_solubility_and_diffusivity_O2_to_CO2 => 0.047 ~ preserve(parameter)
     # Bundle sheath O2 partial pressure, mbar
-    Os(A_net, gbs, Om, α): bundle_sheath_o2 => begin
-        α * A_net / (0.047gbs) + Om
+    Os(A_net, gbs, Om, α, a_o): bundle_sheath_o2 => begin
+        α * A_net / (a_o * gbs) + Om
     end ~ track(u"mbar")
 
     Cbs(A_net, Vp, Cm, Rm, gbs): bundle_sheath_co2 => begin

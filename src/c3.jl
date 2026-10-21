@@ -26,8 +26,26 @@
 
     Vcm25: maximum_carboxylation_rate_at_25 => 108.4 ~ preserve(u"μmol/m^2/s" #= CO2 =#, parameter)
     EaVc: activation_energy_for_carboxylation => 52.1573 ~ preserve(u"kJ/mol", parameter)
-    Vcmax(Vcm25, kT, EaVc, kN): maximum_carboxylation_rate => begin
-        Vcm25 * kT(EaVc) * kN
+    # Vcmax(Vcm25, kT, EaVc, kN): maximum_carboxylation_rate => begin
+    #     Vcm25 * kT(EaVc) * kN
+    # end ~ track(u"μmol/m^2/s" #= CO2 =#)
+
+    # Dyanmic light dependent activation of Rubisco -- CC 9/10/2026, updated 10/8/26
+    rubisco_activation_flag => false ~ flag(parameter) # true for dynamic rubisco activation
+    ra_init: initial_rubisco_activation => 1 ~ preserve(parameter, min=r0, max=1)
+    α_r: initial_slope_rubisco_activation => 0.04 ~ preserve(parameter, u"m^2*s/μmol") # Gross et al. (1991) cited Seemann et al. (1988)
+    r0: minimum_state_rubisco_activation => 0.16 ~ preserve(parameter) # Gross et al. (1991) cited Seemann et al. (1988)
+    τ_r: activation_time_constant_rubisco => 360 ~ preserve(parameter, u"s")
+    ra_ss(α_r, r0, I2): rubisco_ss_activation_state => begin
+        α_r * I2 * (1 - r0) / (α_r * I2 + (1 - r0)) + r0      # Gross et al. (1991)
+    end ~ track(min=r0, max=1)
+
+    Sra(Sra, ra_ss, τ_r) => begin
+        (ra_ss - Sra) / τ_r 
+    end ~ accumulate(init=ra_init, when=rubisco_activation_flag)
+
+    Vcmax(Vcm25, kT, EaVc, kN, Sra): maximum_carboxylation_rate => begin
+        Vcm25 * kT(EaVc) * kN * Sra
     end ~ track(u"μmol/m^2/s" #= CO2 =#)
 end
 
