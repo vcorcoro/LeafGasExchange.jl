@@ -66,9 +66,9 @@ end
     # include light activation of Rubisco activase and subsequent activation or Rubisco (Wang et al., 2021) - CC 10/20/26
     α_R_init: initial_rubisco_activation_state => 1 ~ preserve(parameter, min=c0_r, max=1)
     α_RCA_init: initial_rubisco_activase_activation_state => 1 ~ preserve(parameter, min=c0_rca, max=1)
-    k_rca: rubisco_activase_activation_slope => 0.04 ~ preserve(parameter, u"m^2*s/μmol") # Wang et al. (2021)
-    c0_rca: minimum_activation_state_rubisco_activase => 0.0017 ~ preserve(parameter) # Wang et al. (2021)
-    c0_r: minimum_activation_state_rubisco => 0.16 ~ preserve(parameter) # parameter value, source needed
+    k_rca: rubisco_activase_activation_slope => 0.0017 ~ preserve(parameter, u"m^2*s/μmol") # Wang et al. (2021)
+    c0_rca: minimum_activation_state_rubisco_activase => 0.06 ~ preserve(parameter) # Wang et al. (2021)
+    c0_r: minimum_activation_state_rubisco => 0 ~ preserve(parameter) # parameter value, source needed
     
     τ_r: activation_time_constant_rubisco => 360 ~ preserve(parameter, u"s")
     τ_RCA: activation_time_constant_rubisco_activase => 45.564 ~ preserve(parameter, u"s") # Wang et al. (2021)
@@ -225,6 +225,53 @@ end
 end
 
 @system C4Dyn(C4) begin
+    A_net(Ac, Aj): net_photosynthesis => begin
+        min(Ac, Aj)
+    end ~ track(u"μmol/m^2/s")
+end
+
+@system C4Exact(C4) begin
+
+    a_c(α, a_o, Kc, Ko) => begin
+        1 - (α / a_o * Kc / Ko)
+    end ~ track(u"μbar/μbar")
+
+    b_c(Vp, Vcmax, Rm, Rd, gbs, Cm, Om, Kc, Ko, Γ1, α, a_o) => begin
+        -((Vp - Rm + gbs*Cm) + (Vcmax - Rd) + gbs*(Kc*(1 + Om/Ko)) + α/a_o*(Γ1*Vcmax + Rd*Kc/Ko))
+    end ~ track(u"μmol/m^2/s")
+
+    c_c(Vp, Vcmax, Rm, Rd, gbs, Cm, Om, Kc, Ko, Γ1) => begin
+        (Vcmax - Rd) * (Vp - Rm + gbs*Cm) - (Vcmax*gbs*Γ1*Om + Rd*gbs*Kc*(1+Om/Ko))
+    end ~ track(u"μmol^2/m^4/s^2")
+    
+    Ac_min(Rd) => -Rd ~ track(u"μmol/m^2/s")
+    Ac_max(Vp, gbs, Cm, Rm, Vcmax, Rd) => begin
+        Ac1 = (Vp + gbs*Cm - Rm)
+        Ac2 = (Vcmax - Rd)
+        min(Ac1, Ac2)
+    end ~ track(u"μmol/m^2/s" #= CO2 =#)
+
+    Ac(a = a_c, b = b_c, c = c_c): enzyme_limited_photosynthesis_rate => begin
+        a*Ac^2 + b*Ac + c
+    end ~ solve(u"μmol/m^2/s", lower=Ac_min, upper=Ac_max)
+    # other option: input quadratic equation directly taking the (-b-√(b^2 - 4ac))/(2a) root (von Caemmerer, 2000)
+    
+    # a_j(Γ1, α, a_o) => begin
+    #     1 - (7*Γ1*α) / (3 * a_o)
+    # end ~ track
+
+    # b_j(z, x, J, Rm, Rd, Γ1, Cm, Om, α, a_o) => begin
+    #     -((z/2*x*J - Rm + gbs*Cm) + (z/3*(1-x)*J - Rd) + gbs*(7*Γ1*Om/3) + α*Γ1/a_o*(z/3*(1-x)*J + 7/3*Rd))
+    # end ~ track(u"μmol/m^2/s") 
+
+    # c_j(z, x, J, Rm, Rd, Γ1, Cm, Om) => begin
+    #     (z/2*x*J - Rm + gbs*Cm) * (z/3*(1-x)*J - Rd) - gbs*Γ1*Om*(z/3*(1-x)*J + 7/3*Rd)
+    # end ~ track(u"μmol^2/m^4/s^2")
+
+    # Aj(a = a_j, b = b_j, c = c_j): transport_limited_photosynthesis_rate => begin
+    #     (-b + (b^2 - 4*a*c)^(-1/2))  / (2*a)
+    # end ~ track(u"μmol/m^2/s")
+
     A_net(Ac, Aj): net_photosynthesis => begin
         min(Ac, Aj)
     end ~ track(u"μmol/m^2/s")

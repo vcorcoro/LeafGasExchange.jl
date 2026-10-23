@@ -8,7 +8,7 @@
 
     #HACK: high temperature simulation requires higher upper bound
     Cimax(Ca): intercellular_co2_upper_limit => 2Ca ~ track(u"μbar")
-    Cimin: intercellular_co2_lower_limit => 0 ~ preserve(u"μbar")
+    Cimin: intercellular_co2_lower_limit => 0 ~ preserve(u"μbar", parameter)
     Ci(Ca, Ci, A_net, gvc): intercellular_co2 => begin
         Ca - Ci ⩵ A_net / gvc
     end ~ bisect(min=Cimin, upper=Cimax, u"μbar")

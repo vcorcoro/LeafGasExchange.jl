@@ -25,7 +25,7 @@ include("zeitgeibertime.jl")
 
 @system ModelBaseDyn(
     Weather, Nitrogen, BoundaryLayer, #=StomataDynBase,=# IntercellularSpace, 
-    Irradiance, EnergyBalanceTE, ZeitgeiberTime
+    Irradiance, EnergyBalanceDyn, ZeitgeiberTime
 )
 
 @system ModelC3BB(ModelBase, StomataBallBerry, C3, Controller)
